@@ -68,7 +68,7 @@ public class ResourcePackEngine extends OGGFileWriter {
                         Bukkit.getConsoleSender().sendMessage(convert("&fSkipping &b%s&f because it doesn't have video data!".formatted(song.getYouTubeLink())));
                     } else {
                         receivedVideoInformation.incrementAndGet();
-                        song.setSeconds(videoInfo.details().lengthSeconds());
+                        song.setSeconds(videoInfo.getDurationSeconds());
                         videoInformationList.add(new VideoInformationResponse(videoInfo, song));
                     }
 
@@ -150,7 +150,7 @@ public class ResourcePackEngine extends OGGFileWriter {
             final VideoInformationResponse response = videoInformationList.get(x);
 
             TaskRunner.runSyncTaskLater(() -> {
-                this.youtubeProcessor.downloadYouTubeAudioAsOGG(response.videoInfo(), response.songData().getLocalKey(), (file) -> {
+                this.youtubeProcessor.downloadYouTubeAudioAsOGG(response.songData().getYouTubeLink(), response.songData().getLocalKey(), (file) -> {
                     lastDownloadReceivedAt.set(new Date().getTime());
                     int currentVideosReceived = downloadedSongs.incrementAndGet();
                     /* Always recheck total song count just in case one gets removed */

@@ -5,21 +5,16 @@ import com.burchard36.libs.ffmpeg.FFExecutor;
 import com.burchard36.libs.ffmpeg.FFMPEGDownloader;
 import com.burchard36.libs.ffmpeg.FFTask;
 import com.burchard36.libs.ffmpeg.events.FFMPEGInitializedEvent;
-import com.github.kiulian.downloader.Config;
-import com.github.kiulian.downloader.YoutubeDownloader;
-import com.github.kiulian.downloader.downloader.YoutubeCallback;
-import com.github.kiulian.downloader.downloader.YoutubeProgressCallback;
-import com.github.kiulian.downloader.downloader.request.RequestVideoFileDownload;
-import com.github.kiulian.downloader.downloader.request.RequestVideoInfo;
-import com.github.kiulian.downloader.model.videos.VideoInfo;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
-import java.io.File;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import static com.burchard36.musepluse.MusePlusePlugin.*;
@@ -27,11 +22,9 @@ import static com.burchard36.libs.utils.StringUtils.convert;
 
 public class YoutubeProcessor implements Listener {
 
-    protected final Config youtubeConfiguration;
-    protected final YoutubeDownloader youtubeRequester;
+    protected final YtDlpDownloader ytDlpDownloader;
     protected final FFMPEGDownloader ffmpegDownloader;
     protected FFExecutor ffExecutor;
-    /* If FFMPEG Is not installed, download requests will be put into a List until it */
     protected final List<FFTask> queuedOGGConversions;
     protected final File mediaOutput;
     protected final File oggOutput;
@@ -41,11 +34,7 @@ public class YoutubeProcessor implements Listener {
     public YoutubeProcessor(final MusePlusePlugin pluginInstance) {
         MusePlusePlugin.registerEvent(this);
         this.queuedOGGConversions = new ArrayList<>();
-        this.youtubeConfiguration = new Config.Builder()
-                .executorService((ExecutorService) MAIN_THREAD_POOL)
-                .maxRetries(0)
-                .build();
-        this.youtubeRequester = new YoutubeDownloader(this.youtubeConfiguration);
+        this.ytDlpDownloader = pluginInstance.getYtDlpDownloader();
         this.ffmpegDownloader = pluginInstance.getFfmpegDownloader();
         this.mediaOutput = new File(pluginInstance.getDataFolder(), "/media");
         this.oggOutput = new File(this.mediaOutput, "/ogg");
@@ -55,104 +44,176 @@ public class YoutubeProcessor implements Listener {
     }
 
     /**
-     * Downloads a YouTube video as a m4a and converts it to OGG
+     * Downloads a YouTube video's audio via yt-dlp and converts it to OGG using FFmpeg.
      *
-     * This method WILL wait until FFMPEG initializes
-     *
-     * @param videoInfo {@link VideoInfo} the information to use, can be gotten from: {@link YoutubeProcessor#getVideoInformation(String, Consumer)}
-     * @param newFileName {@link String} the new file name to save the file may or may not include the .ogg extension
-     * @param callback {@link Consumer} the callback used when this video & conversion is finished
+     * @param youtubeUrl  the full YouTube video URL
+     * @param newFileName the file name to save (without extension)
+     * @param callback    called when conversion is finished (or null on failure)
      */
-    public final void downloadYouTubeAudioAsOGG(final VideoInfo videoInfo, String newFileName, final Consumer<File> callback) {
-        /* For use in Async */
+    public final void downloadYouTubeAudioAsOGG(final String youtubeUrl, String newFileName, final Consumer<File> callback) {
         final String finalNewFileName = newFileName;
-        // TODO: There is a videoInfo.details().downloadable() method, maybe this can help solve some issues with people needing to refresh theyre MP Plugin generation
 
-        final RequestVideoFileDownload downloadRequest = new RequestVideoFileDownload(videoInfo.bestAudioFormat())
-                .callback(new YoutubeProgressCallback<>() {
-                    @Override
-                    public void onDownloading(int progress) {
-                        //Bukkit.getConsoleSender().sendMessage("Song downloading... %s Progress: %s".formatted(finalNewFileName, progress));
+        CompletableFuture.runAsync(() -> {
+            try {
+                if (this.ytDlpDownloader.isDownloading()) {
+                    Bukkit.getConsoleSender().sendMessage(convert("&cyt-dlp is still installing, cannot download &b%s&f yet. Will retry automatically.".formatted(finalNewFileName)));
+                    callback.accept(null);
+                    return;
+                }
+
+                if (!this.m4aOutput.exists()) this.m4aOutput.mkdirs();
+                if (!this.oggOutput.exists()) this.oggOutput.mkdirs();
+
+                final File ytDlpFile = this.ytDlpDownloader.getYtDlpFile();
+                // Use %(ext)s so yt-dlp determines the correct extension after download
+                final String outputTemplate = new File(this.m4aOutput, finalNewFileName + ".%(ext)s").getPath();
+                final File oggFile = new File(this.oggOutput, finalNewFileName + ".ogg");
+
+                // Build yt-dlp command: download best audio stream only (no post-processing needed)
+                List<String> command = new ArrayList<>();
+                command.add(ytDlpFile.getPath());
+                command.add("-f");
+                command.add("bestaudio");
+                command.add("-o");
+                command.add(outputTemplate);
+                command.add("--no-part");
+                command.add("--no-playlist");
+                command.add("--no-mtime");
+                command.add(youtubeUrl);
+
+                ProcessBuilder processBuilder = new ProcessBuilder(command);
+                processBuilder.redirectErrorStream(true);
+                Process process = processBuilder.start();
+
+                // Consume process output
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        // yt-dlp progress output — can be logged if needed
                     }
+                }
 
-                    @Override
-                    public void onFinished(File data) {
-                        Bukkit.getConsoleSender().sendMessage(convert("&fYouTube video &b%s&f has finished downloading!").formatted(finalNewFileName));
-                        Bukkit.getConsoleSender().sendMessage(convert("&fAttempting to convert &b%s&f to OGG file format...").formatted(data.getPath()));
-                        final File outputFile = new File(oggOutput.getPath() + "/%s.ogg".formatted(finalNewFileName));
-                        if (ffmpegDownloader.isDownloading()) {
-                            Bukkit.getConsoleSender().sendMessage(convert("&fPausing conversion of file &b%s&f as it appears FFMPEG is not initializated! (is it still installing?\nThis task will automatically resume! This is not an error!"));
-                            queuedOGGConversions.add(new FFTask(data, outputFile, callback));
-                        } else {
-                            Bukkit.getLogger().info("Running");
-                            Bukkit.getConsoleSender().sendMessage("Running with console sender....");
-                            ffExecutor.convertToOgg(data, outputFile, () -> {
-                                Bukkit.getConsoleSender().sendMessage(convert("&aSuccessfully &fconverted file &b%s&f! Cleaning up...").formatted(finalNewFileName));
-                                //if (data.delete())
-                                    //Bukkit.getConsoleSender().sendMessage(convert("&aSuccessfully&f cleaned up file &b%s&f").formatted(finalNewFileName));
-                                callback.accept(data); // use a different executor for callbacks
-                            });
-                        }
-                    }
+                int exitCode = process.waitFor();
 
-                    @Override
-                    public void onError(Throwable throwable) {
-                        Bukkit.getConsoleSender().sendMessage(convert("&cERROR WITH %s".formatted(finalNewFileName)));
-                        throwable.printStackTrace();
-                        callback.accept(null);
-                    }
+                // Find the downloaded file (extension may vary: m4a, webm, opus, etc.)
+                File downloadedFile = findDownloadedFile(finalNewFileName);
 
+                if (exitCode != 0 || downloadedFile == null) {
+                    Bukkit.getConsoleSender().sendMessage(convert("&cERROR downloading %s via yt-dlp (exit code: %d)".formatted(finalNewFileName, exitCode)));
+                    callback.accept(null);
+                    return;
+                }
 
-                })
-                .saveTo(this.m4aOutput)
-                .renameTo(finalNewFileName)
-                .async();
+                Bukkit.getConsoleSender().sendMessage(convert("&fYouTube video &b%s&f has finished downloading!").formatted(finalNewFileName));
+                Bukkit.getConsoleSender().sendMessage(convert("&fAttempting to convert &b%s&f to OGG file format...").formatted(downloadedFile.getPath()));
 
-        this.youtubeRequester.downloadVideoFile(downloadRequest);
+                if (ffmpegDownloader.isDownloading()) {
+                    Bukkit.getConsoleSender().sendMessage(convert("&fPausing conversion of file &b%s&f as FFMPEG is not initialized! (is it still installing?)\nThis task will automatically resume! This is not an error!"));
+                    queuedOGGConversions.add(new FFTask(downloadedFile, oggFile, callback));
+                } else {
+                    ffExecutor.convertToOgg(downloadedFile, oggFile, () -> {
+                        Bukkit.getConsoleSender().sendMessage(convert("&aSuccessfully &fconverted file &b%s&f! Cleaning up...").formatted(finalNewFileName));
+                        callback.accept(downloadedFile);
+                    });
+                }
+
+            } catch (Exception e) {
+                Bukkit.getConsoleSender().sendMessage(convert("&cERROR WITH %s".formatted(finalNewFileName)));
+                e.printStackTrace();
+                callback.accept(null);
+            }
+        }, MAIN_THREAD_POOL);
     }
 
     /**
-     * Gets information about a YouTube video, this can range from the video's length, video name, video/audio formats
-     * and much much more
+     * Gets information about a YouTube video using yt-dlp's JSON output.
+     *
      * @param youtubeLink a full YouTube video link
-     * @param callback A callback to accept the {@link VideoInfo} that was requested
+     * @param callback    a callback to accept the video info (or null on error)
      */
-    public final void getVideoInformation(final String youtubeLink, final Consumer<VideoInfo> callback) {
-        final RequestVideoInfo videoInfoRequest = new RequestVideoInfo(this.getVideoId(youtubeLink))
-                .callback(new YoutubeCallback<>() {
-                    @Override
-                    public void onFinished(VideoInfo videoInfo) {
-                        Bukkit.getConsoleSender().sendMessage(convert("&fVideo information for song &b%s&f received!").formatted(youtubeLink));
-                        callback.accept(videoInfo); // callbacks happen off the main thread executor
-                    }
+    public final void getVideoInformation(final String youtubeLink, final Consumer<YtDlpVideoInfo> callback) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                if (this.ytDlpDownloader.isDownloading()) {
+                    Bukkit.getConsoleSender().sendMessage(convert("&cyt-dlp is still installing, cannot fetch info for &b%s&f yet.".formatted(youtubeLink)));
+                    callback.accept(null);
+                    return;
+                }
 
-                    @Override
-                    public void onError(Throwable throwable) {
-                        Bukkit.getConsoleSender().sendMessage(convert("&cERROR WITH &b%s".formatted(youtubeLink)));
-                        Bukkit.getConsoleSender().sendMessage(convert("&cThe plugin will attempt to skips this song and continue loading!"));
-                        Bukkit.getConsoleSender().sendMessage(convert("&cIf you encounter any issues, please try removing this song from songs.yml first!"));
-                        callback.accept(null);
-                    }
-                })
-                .async();
+                final File ytDlpFile = this.ytDlpDownloader.getYtDlpFile();
 
-        this.youtubeRequester.getVideoInfo(videoInfoRequest);
+                List<String> command = new ArrayList<>();
+                command.add(ytDlpFile.getPath());
+                command.add("-j");
+                command.add("--no-download");
+                command.add("--no-playlist");
+                command.add(youtubeLink);
+
+                ProcessBuilder processBuilder = new ProcessBuilder(command);
+                processBuilder.redirectErrorStream(false);
+                Process process = processBuilder.start();
+
+                // Read stdout (JSON metadata)
+                StringBuilder jsonOutput = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        jsonOutput.append(line);
+                    }
+                }
+
+                // Read stderr for error messages
+                StringBuilder errorOutput = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        errorOutput.append(line).append("\n");
+                    }
+                }
+
+                int exitCode = process.waitFor();
+
+                if (exitCode != 0 || jsonOutput.length() == 0) {
+                    Bukkit.getConsoleSender().sendMessage(convert("&cERROR WITH &b%s".formatted(youtubeLink)));
+                    Bukkit.getConsoleSender().sendMessage(convert("&cThe plugin will attempt to skip this song and continue loading!"));
+                    if (errorOutput.length() > 0) {
+                        Bukkit.getConsoleSender().sendMessage(convert("&cyt-dlp error: %s".formatted(errorOutput.toString().trim())));
+                    }
+                    Bukkit.getConsoleSender().sendMessage(convert("&cIf you encounter any issues, please try removing this song from songs.yml first!"));
+                    callback.accept(null);
+                    return;
+                }
+
+                JsonObject json = JsonParser.parseString(jsonOutput.toString()).getAsJsonObject();
+                int duration = json.has("duration") ? json.get("duration").getAsInt() : 0;
+                String title = json.has("title") ? json.get("title").getAsString() : "Unknown";
+
+                Bukkit.getConsoleSender().sendMessage(convert("&fVideo information for song &b%s&f received!").formatted(youtubeLink));
+                callback.accept(new YtDlpVideoInfo(duration, title, youtubeLink));
+
+            } catch (Exception e) {
+                Bukkit.getConsoleSender().sendMessage(convert("&cERROR WITH &b%s".formatted(youtubeLink)));
+                Bukkit.getConsoleSender().sendMessage(convert("&cThe plugin will attempt to skip this song and continue loading!"));
+                Bukkit.getConsoleSender().sendMessage(convert("&cIf you encounter any issues, please try removing this song from songs.yml first!"));
+                e.printStackTrace();
+                callback.accept(null);
+            }
+        }, MAIN_THREAD_POOL);
     }
 
-
     /**
-     * Splits a youtube link into two parts as show below
-     *
-     * https://www.youtube.com/watch?v lSALzr_vs_M
-     *
-     * The second argument is what is returned (AKA Video ID)
-     * @param youtubeLink A Full youtube link
-     * @return The YouTube video ID
+     * Finds the downloaded audio file by name prefix in the m4a output directory.
+     * yt-dlp may save as .webm, .m4a, .opus, etc. depending on the source.
      */
-    private String getVideoId(final String youtubeLink) {
-        final String[] splitLink = youtubeLink.split("=");
-        if (splitLink.length != 2) throw new RuntimeException("Youtube link for video is invalid: %s".formatted(youtubeLink));
-        return splitLink[1];
+    private File findDownloadedFile(final String fileNamePrefix) {
+        File[] files = this.m4aOutput.listFiles();
+        if (files == null) return null;
+        for (File f : files) {
+            if (f.getName().startsWith(fileNamePrefix + ".")) {
+                return f;
+            }
+        }
+        return null;
     }
 
     /**
@@ -170,7 +231,7 @@ public class YoutubeProcessor implements Listener {
     protected void initializeFFMPEG() {
         if (IS_WINDOWS) {
             this.ffmpegFile = new File(MusePlusePlugin.INSTANCE.getDataFolder().getPath() + "\\ffmpeg\\bin\\ffmpeg.exe");
-        } else { // Only support windows and linux, this will likely throw errors on apple and solaris systems but fuck em for now
+        } else {
             final File ffmpegForLinux = new File(MusePlusePlugin.INSTANCE.getDataFolder().getPath() + "/ffmpeg/ffmpeg");
             final File ffprobeForLinux = new File(MusePlusePlugin.INSTANCE.getDataFolder().getPath() + "/ffmpeg/ffprobe");
             ffmpegForLinux.setExecutable(true, false);

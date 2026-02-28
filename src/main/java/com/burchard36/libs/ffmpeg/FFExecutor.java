@@ -3,7 +3,6 @@ package com.burchard36.libs.ffmpeg;
 import com.burchard36.musepluse.MusePlusePlugin;
 import com.burchard36.musepluse.resource.SongQuality;
 import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -49,9 +48,6 @@ public class FFExecutor {
                 while ((s = stdInput.readLine()) != null) {
                     System.out.println(s);
                 }
-
-                Chunk chunk;
-                chunk.getChunkSnapshot()
 
                 System.out.println("Here is the standard error of the command (if any):\n");
                 while ((s = stdError.readLine()) != null) {

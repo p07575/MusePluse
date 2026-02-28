@@ -5,6 +5,7 @@ import com.burchard36.libs.config.MusePluseConfig;
 import com.burchard36.libs.config.MusePluseSettings;
 import com.burchard36.libs.ffmpeg.FFMPEGDownloader;
 import com.burchard36.libs.ffmpeg.events.FFMPEGInitializedEvent;
+import com.burchard36.libs.youtube.YtDlpDownloader;
 import com.burchard36.libs.gui.GuiEvents;
 import com.burchard36.libs.gui.GuiManager;
 import com.burchard36.musepluse.commands.SkipSongCommand;
@@ -42,6 +43,8 @@ public class MusePlusePlugin extends JavaPlugin implements Listener {
     @Getter
     private FFMPEGDownloader ffmpegDownloader;
     @Getter
+    private YtDlpDownloader ytDlpDownloader;
+    @Getter
     private ConfigManager configManager;
     @Getter
     private Random random;
@@ -76,6 +79,8 @@ public class MusePlusePlugin extends JavaPlugin implements Listener {
         random = new Random();
         this.ffmpegDownloader = new FFMPEGDownloader(this);
         this.ffmpegDownloader.installFFMPEG();
+        this.ytDlpDownloader = new YtDlpDownloader(this);
+        this.ytDlpDownloader.installYtDlp();
         this.configManager = new ConfigManager(this);
         this.guiManager = new GuiManager();
 

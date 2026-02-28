@@ -1,6 +1,6 @@
 package com.burchard36.libs.youtube.events;
 
-import com.github.kiulian.downloader.model.videos.VideoInfo;
+import com.burchard36.libs.youtube.YtDlpVideoInfo;
 import lombok.Getter;
 
 import java.io.File;
@@ -11,7 +11,7 @@ import java.util.function.Consumer;
  *
  * Please note that this is for education purposes only
  *
- * {@link VideoInfo} will be returned in this event, and will typically
+ * {@link YtDlpVideoInfo} will be returned in this event, and will typically
  * be used to download the video, however it is possible to get a plethora
  * of other information, may be useful later down the line as a TODO for some gui overhauling for youtube
  *
@@ -19,14 +19,14 @@ import java.util.function.Consumer;
  */
 public class VideoInformationReceivedEvent {
     @Getter
-    protected final VideoInfo videoInfo;
+    protected final YtDlpVideoInfo videoInfo;
     @Getter
     protected final String outputFileName;
     @Getter
     protected final Consumer<File> callback;
 
     public VideoInformationReceivedEvent(
-            final VideoInfo videoInfo,
+            final YtDlpVideoInfo videoInfo,
             final String outputFileName,
             final Consumer<File> onCompletionCallback) {
         this.videoInfo = videoInfo;
