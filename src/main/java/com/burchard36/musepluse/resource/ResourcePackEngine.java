@@ -145,8 +145,8 @@ public class ResourcePackEngine extends OGGFileWriter {
             }
         }.runTaskTimer(this.pluginInstance.getPluginInstance(), 0, 3);
 
-        /* Loop through all songs */
-        for (int x = 0; x < this.pluginInstance.getMusicListConfig().getSongDataList().size(); x++) {
+        /* Loop through all songs that were successfully fetched */
+        for (int x = 0; x < videoInformationList.size(); x++) {
             final VideoInformationResponse response = videoInformationList.get(x);
 
             TaskRunner.runSyncTaskLater(() -> {
