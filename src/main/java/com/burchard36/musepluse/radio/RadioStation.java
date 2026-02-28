@@ -19,7 +19,6 @@ public class RadioStation {
         this.ownerUID = player.getUniqueId();
         this.listeningPlayers = new ArrayList<>();
         this.pluginInstance = MusePlusePlugin.INSTANCE;
-        Chunk
     }
 
 
