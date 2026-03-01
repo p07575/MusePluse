@@ -232,6 +232,11 @@ public class ResourcePackEngine extends OGGFileWriter {
             this.resourcePackFile = new File(this.getResourcePackDirectory(), "%s.zip".formatted(this.resourcePackUUID.toString()));
             zipUtility.zip(List.of(tempFiles), this.resourcePackFile.getPath());
             this.resourcePackHash = computeSha1(this.resourcePackFile);
+            // Log ZIP contents for verification
+            try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(this.resourcePackFile)) {
+                Bukkit.getConsoleSender().sendMessage(convert("&fZIP contents (&b" + zf.size() + " entries&f):"));
+                zf.stream().forEach(e -> Bukkit.getConsoleSender().sendMessage(convert("  &7" + e.getName() + " (" + e.getSize() + " bytes)")));
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
