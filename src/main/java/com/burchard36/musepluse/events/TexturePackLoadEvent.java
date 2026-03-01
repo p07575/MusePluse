@@ -38,10 +38,9 @@ public class TexturePackLoadEvent implements Listener {
             case FAILED_DOWNLOAD -> player.sendMessage(convert("&cDownload failed! Try relogging to fix this!"));
             case SUCCESSFULLY_LOADED -> {
                 if (!musePluseSettings.isPlayOnJoin()) return;
-                if (musePluseSettings.isNeedsPermissionToPlayOnJoin() && player.hasPermission("musepluse.playonjoin")) {
-                    if (!this.musicPlayer.hasAutoPlayEnabled(player)) return;
-                    this.musicPlayer.playNextSong(player);
-                }
+                if (musePluseSettings.isNeedsPermissionToPlayOnJoin() && !player.hasPermission("musepluse.playonjoin")) return;
+                if (!this.musicPlayer.hasAutoPlayEnabled(player)) return;
+                this.musicPlayer.playNextSong(player);
             }
         }
     }
