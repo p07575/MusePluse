@@ -1,6 +1,6 @@
 # MusePluse
 
-![Release](https://img.shields.io/badge/release-v2.0.7-blue)
+![Release](https://img.shields.io/badge/release-v2.0.8-blue)
 ![Minecraft](https://img.shields.io/badge/Minecraft-Up%20to%201.21.11-green)
 
 > **Fork Notice:** This is a maintained fork of the original MusePluse plugin. The original project is no longer maintained. This fork restores YouTube downloading via yt-dlp and adds support for modern Minecraft versions.
