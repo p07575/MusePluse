@@ -44,13 +44,18 @@ public class ReloadMusicCommand implements CommandExecutor {
             }
 
             if (this.moduleSettings.isResourcePackServerEnabled()) {
-                this.moduleSettings.getResourcePack(this.resourcePackEngine.resourcePackFileFromDisk(), (resourcePack) -> {
+                this.moduleSettings.getResourcePack(this.resourcePackEngine.resourcePackFileFromDisk(), (resourcePackUrl) -> {
                     this.musicPlayer.stopForAll(); // stop listening here so plays have a near seamless transition!
 
                     Bukkit.getOnlinePlayers().forEach((player) -> {
                         player.sendMessage(convert("&aDue to a server reload, your resource pack is being reloaded!"));
-                        player.setResourcePack(resourcePack);
-
+                        player.setResourcePack(
+                                this.resourcePackEngine.getResourcePackUUID(),
+                                resourcePackUrl,
+                                this.resourcePackEngine.getResourcePackHash(),
+                                null,
+                                false
+                        );
                     });
 
                     sender.sendMessage(convert("&aThe music list has successfully been reloaded and the resource pack has been updated for your players!"));

@@ -67,7 +67,15 @@ public class JoinEvent implements Listener {
         }
         final File file = this.resourcePackEngine.resourcePackFileFromDisk();
         if (file == null) throw new RuntimeException("The resource pack in /resource-pack does not exist! Why? Did you delete it? Restart your server!");
-        this.musePluseSettings.getResourcePack(file, player::setResourcePack);
+        this.musePluseSettings.getResourcePack(file, (url) -> {
+            player.setResourcePack(
+                    this.resourcePackEngine.getResourcePackUUID(),
+                    url,
+                    this.resourcePackEngine.getResourcePackHash(),
+                    null,
+                    false
+            );
+        });
     }
 
     @EventHandler
@@ -80,7 +88,15 @@ public class JoinEvent implements Listener {
                 if (this.musePluseSettings.isResourcePackServerEnabled()) {
                     final File file = this.resourcePackEngine.resourcePackFileFromDisk();
                     if (file == null) throw new RuntimeException("The resource pack in /resource-pack does not exist! Why? Did you delete it? Restart your server!");
-                    this.musePluseSettings.getResourcePack(file, player::setResourcePack);
+                    this.musePluseSettings.getResourcePack(file, (url) -> {
+                        player.setResourcePack(
+                                this.resourcePackEngine.getResourcePackUUID(),
+                                url,
+                                this.resourcePackEngine.getResourcePackHash(),
+                                null,
+                                false
+                        );
+                    });
                 } else Bukkit.getConsoleSender().sendMessage(convert("&cSeems the embedded resource pack serer is disabled, the resource pack set in the settings.yml will be sent to your players isntead!"));
             }
         });

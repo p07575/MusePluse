@@ -13,7 +13,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -32,6 +34,10 @@ public class ResourcePackEngine extends OGGFileWriter {
     protected final MusePluseSettings pluginSettings;
     protected final YoutubeProcessor youtubeProcessor;
     protected File resourcePackFile;
+    @Getter
+    protected byte[] resourcePackHash;
+    @Getter
+    protected UUID resourcePackUUID;
     @Getter
     protected final AtomicBoolean creatingTexturePack = new AtomicBoolean(false);
 
@@ -99,6 +105,7 @@ public class ResourcePackEngine extends OGGFileWriter {
         final boolean resourcePackExists = this.resourcePackExists();
         if (resourcePackExists && !force) {
             Bukkit.getConsoleSender().sendMessage(convert("&aSuccessfully&f detected previously created resource pack, enjoy! Delete this file if you want to regenerate it!"));
+            this.loadPackMetadata();
             this.loadSongTimes((songList) -> onComplete.run());
             onComplete.run(); // callbacks get put into a different thread pool
             return;
@@ -219,11 +226,48 @@ public class ResourcePackEngine extends OGGFileWriter {
         File[] tempFiles = new File(this.getResourcePackTempFilesDirectory(), "/assets").listFiles();
         if (tempFiles == null) throw new RuntimeException("It appears the /resource-pack directory was null when calling zipResourcePack, maybe restart your server?");
         try {
-            this.resourcePackFile = new File(this.getResourcePackDirectory(), "%s.zip".formatted(UUID.randomUUID().toString()));
+            this.resourcePackUUID = UUID.randomUUID();
+            this.resourcePackFile = new File(this.getResourcePackDirectory(), "%s.zip".formatted(this.resourcePackUUID.toString()));
             zipUtility.zip(List.of(tempFiles), this.resourcePackFile.getPath());
+            this.resourcePackHash = computeSha1(this.resourcePackFile);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Computes the SHA-1 hash of a file (required by modern MC setResourcePack API).
+     */
+    private byte[] computeSha1(File file) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            try (FileInputStream fis = new FileInputStream(file)) {
+                byte[] buffer = new byte[8192];
+                int n;
+                while ((n = fis.read(buffer)) != -1) {
+                    digest.update(buffer, 0, n);
+                }
+            }
+            return digest.digest();
+        } catch (Exception e) {
+            Bukkit.getLogger().warning("Failed to compute SHA-1 hash for resource pack: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Loads the UUID and SHA-1 hash from an existing resource pack file on disk.
+     */
+    public void loadPackMetadata() {
+        File file = this.resourcePackFileFromDisk();
+        if (file == null) return;
+        String name = file.getName().replace(".zip", "");
+        try {
+            this.resourcePackUUID = UUID.fromString(name);
+        } catch (IllegalArgumentException e) {
+            this.resourcePackUUID = UUID.randomUUID();
+        }
+        this.resourcePackHash = computeSha1(file);
     }
 
 }
