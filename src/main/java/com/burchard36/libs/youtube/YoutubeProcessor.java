@@ -108,7 +108,7 @@ public class YoutubeProcessor implements Listener {
                 Bukkit.getConsoleSender().sendMessage(convert("&fAttempting to convert &b%s&f to OGG file format...").formatted(downloadedFile.getPath()));
 
                 if (ffmpegDownloader.isDownloading()) {
-                    Bukkit.getConsoleSender().sendMessage(convert("&fPausing conversion of file &b%s&f as FFMPEG is not initialized! (is it still installing?)\nThis task will automatically resume! This is not an error!"));
+                    Bukkit.getConsoleSender().sendMessage(convert("&fPausing conversion of &b%s&f — FFmpeg is still downloading. Will resume automatically.".formatted(finalNewFileName)));
                     queuedOGGConversions.add(new FFTask(downloadedFile, oggFile, callback));
                 } else {
                     ffExecutor.convertToOgg(downloadedFile, oggFile, () -> {

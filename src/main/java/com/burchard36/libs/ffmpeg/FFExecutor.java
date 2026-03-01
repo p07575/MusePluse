@@ -37,21 +37,11 @@ public class FFExecutor {
                 //Bukkit.getLogger().info("Running FFMPEG: %s -y -v error -i %s -q:a %sk %s".formatted(ffmpeg.getPath(), from.getPath(), songQuality, to.getPath()));
                 //final Process process = runtime.exec("%s -y -v error -i %s -c:a libvorbis -b:a %sk %s".formatted(ffmpeg.getPath(), from.getPath(), songQuality, to.getPath()));
 
-                BufferedReader stdInput = new BufferedReader(new
-                        InputStreamReader(process.getInputStream()));
-
-                BufferedReader stdError = new BufferedReader(new
-                        InputStreamReader(process.getErrorStream()));
-
-                System.out.println("Here is the standard output of the command:\n");
-                String s = null;
-                while ((s = stdInput.readLine()) != null) {
-                    System.out.println(s);
-                }
-
-                System.out.println("Here is the standard error of the command (if any):\n");
-                while ((s = stdError.readLine()) != null) {
-                    System.out.println(s);
+                // Consume stdout/stderr so the process doesn't block
+                try (BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                     BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    while (stdInput.readLine() != null) {}
+                    while (stdError.readLine() != null) {}
                 }
 
                 process.onExit().thenAccept((v) -> onComplete.run()).join();
