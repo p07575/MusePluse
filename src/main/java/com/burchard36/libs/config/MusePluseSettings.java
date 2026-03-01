@@ -7,6 +7,7 @@ import com.burchard36.libs.utils.TaskRunner;
 import com.burchard36.musepluse.resource.SongQuality;
 import lombok.Getter;
 import lombok.NonNull;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.io.File;
@@ -151,17 +152,29 @@ public class MusePluseSettings implements Config {
             TaskRunner.runSyncTask(() -> ipAddr.accept(this.selfHostedResourcePackAddress));
             return;
         }
+        final String fileUUID = resourcePackFile.getName().split("\\.")[0];
+        // If the host is configured to something other than "localhost", use it directly
+        if (this.resourcePackHostAddress != null
+                && !this.resourcePackHostAddress.isBlank()
+                && !this.resourcePackHostAddress.equalsIgnoreCase("localhost")
+                && !this.resourcePackHostAddress.equalsIgnoreCase("auto")) {
+            final String url = "http://%s:%s/%s.zip".formatted(this.resourcePackHostAddress, this.resourcePackServerPort, fileUUID);
+            Bukkit.getConsoleSender().sendMessage(convert("&fResource pack URL: &b%s".formatted(url)));
+            TaskRunner.runSyncTask(() -> ipAddr.accept(url));
+            return;
+        }
+        // Otherwise auto-detect external IP
         CompletableFuture.runAsync(() -> {
-            final String fileUUID = resourcePackFile.getName().split("\\.")[0];
             try {
                 HttpClient client = HttpClient.newHttpClient();
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(new URI("https://ifconfig.me/ip"))
                         .build();
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                String externalAddress = response.body();
-                TaskRunner.runSyncTask(() ->
-                        ipAddr.accept("http://%s:%s/%s.zip".formatted(externalAddress, this.resourcePackServerPort, fileUUID)));
+                String externalAddress = response.body().trim();
+                final String url = "http://%s:%s/%s.zip".formatted(externalAddress, this.resourcePackServerPort, fileUUID);
+                Bukkit.getConsoleSender().sendMessage(convert("&fResource pack URL: &b%s".formatted(url)));
+                TaskRunner.runSyncTask(() -> ipAddr.accept(url));
             } catch (IOException | URISyntaxException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
