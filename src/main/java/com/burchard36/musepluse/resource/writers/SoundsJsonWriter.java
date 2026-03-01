@@ -29,11 +29,11 @@ public abstract class SoundsJsonWriter extends McMetaWriter {
         final JsonObject soundsJsonData = new JsonObject();
         songConfig.getSongDataList().forEach((song) -> {
             final JsonObject soundEvent = new JsonObject();
-            soundEvent.addProperty("category", "music");
+            soundEvent.addProperty("replace", true);
             final JsonArray soundsArray = new JsonArray();
-            // Use object format so we can set stream:true (required for long audio files)
             final JsonObject soundEntry = new JsonObject();
-            soundEntry.addProperty("name", "music/" + song.getLocalKey());
+            // Explicit namespace prefix required — without it Minecraft may look in wrong namespace
+            soundEntry.addProperty("name", "musepluse:music/" + song.getLocalKey());
             soundEntry.addProperty("stream", true);
             soundsArray.add(soundEntry);
             soundEvent.add("sounds", soundsArray);
