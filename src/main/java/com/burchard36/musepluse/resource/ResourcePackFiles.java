@@ -34,6 +34,7 @@ public class ResourcePackFiles {
         this.oggDirectory = new File(this.mediaFilesDirectory, "/ogg");
         this.m4aDirectory = new File(this.mediaFilesDirectory, "/m4a");
         this.soundsJsonFile = new File(this.resourcePackTempFilesDirectory, "/assets/assets/musepluse/sounds.json");
+        // mcMetaFile is at the root of the pack (inside /assets/ which becomes the zip root)
         this.mcMetaFile = new File(this.resourcePackTempFilesDirectory, "/assets/pack.mcmeta");
     }
 
@@ -54,7 +55,7 @@ public class ResourcePackFiles {
 
         this.oggDirectory.mkdirs();
         this.m4aDirectory.mkdirs();
-        this.soundsJsonFile.mkdirs();
+        this.soundsJsonFile.getParentFile().mkdirs();
     }
 
     public void cleanUp() {

@@ -19,8 +19,8 @@ public abstract class OGGFileWriter extends SoundsJsonWriter{
     public void flashOGGFilesToTempDirectory() {
         File[] files = this.getOggDirectory().listFiles();
         if (files == null) throw new RuntimeException("There was no OGG files found in /media/ogg, if this is intended the plugin will disable.");
-        final File musicDirectory = new File(this.getResourcePackTempFilesDirectory(), "/assets/assets/minecraft/sounds/music");
-        if (!musicDirectory.exists()) if (musicDirectory.mkdirs()) Bukkit.getConsoleSender().sendMessage(convert("&aSuccessfully&f created new &b/assets/assets/minecraft/sounds/music&f directory!"));
+        final File musicDirectory = new File(this.getResourcePackTempFilesDirectory(), "/assets/assets/musepluse/sounds/music");
+        if (!musicDirectory.exists()) if (musicDirectory.mkdirs()) Bukkit.getConsoleSender().sendMessage(convert("&aSuccessfully&f created new &b/assets/assets/musepluse/sounds/music&f directory!"));
         for (File file : files) {
             String fileName = file.getName();
             if (!IS_WINDOWS) {

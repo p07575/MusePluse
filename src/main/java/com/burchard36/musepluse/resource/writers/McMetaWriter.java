@@ -33,8 +33,13 @@ public abstract class McMetaWriter extends ResourcePackFiles {
         JsonObject object = new JsonObject();
         JsonObject subObject = new JsonObject();
         object.add("pack", subObject);
-        subObject.addProperty("pack_format", 13);
+        subObject.addProperty("pack_format", 46);
         subObject.addProperty("description", "Muse Pluse Resource Pack!");
+        // supported_formats allows the pack to work across a wide range of MC versions (1.19.4 - 1.21.8+)
+        JsonObject supportedFormats = new JsonObject();
+        supportedFormats.addProperty("min_inclusive", 13);
+        supportedFormats.addProperty("max_inclusive", 64);
+        subObject.add("supported_formats", supportedFormats);
         try (final FileWriter writer = new FileWriter(this.getMcMetaFile())) {
             this.gson.toJson(object, writer);
         } catch (IOException ex) {
