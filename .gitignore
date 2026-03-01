@@ -22,5 +22,12 @@
 hs_err_pid*
 replay_pid*
 
-# Idea files
-.idea
+# IDE files
+.idea/
+.vscode/
+
+# Claude Code
+.claude/
+
+# Maven build output
+target/
