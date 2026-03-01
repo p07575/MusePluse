@@ -31,21 +31,38 @@ public class FFExecutor {
     public void convertToOgg(final File from, final File to, Runnable onComplete) {
         CompletableFuture.runAsync(() -> {
             try {
-                // TODO If this breaks the original command we used is this line here
                 final int songQuality = SongQuality.getQualityNumber(this.pluginInstance.getMusePluseSettings().getSongGenerationQuality());
-                // Explicitly use libvorbis — Minecraft only supports OGG Vorbis, not Opus
-                final Process process = runtime.exec("%s -y -v error -i %s -c:a libvorbis -b:a %sk %s".formatted(ffmpeg.getPath(), from.getPath(), songQuality, to.getPath()));
+                // Minecraft requires OGG Vorbis at 44100 Hz sample rate
+                // -c:a libvorbis: correct encoder for Minecraft compatibility
+                // -q:a: VBR quality mode (avoids libvorbis minimum bitrate errors)
+                // -ar 44100: sample rate required by Minecraft
+                ProcessBuilder pb = new ProcessBuilder(
+                        ffmpeg.getPath(), "-y", "-v", "error",
+                        "-i", from.getPath(),
+                        "-c:a", "libvorbis", "-q:a", String.valueOf(songQuality), "-ar", "44100",
+                        to.getPath()
+                );
+                pb.redirectErrorStream(false);
+                Process process = pb.start();
 
-                // Consume stdout/stderr so the process doesn't block
-                try (BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                     BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                // Consume stdout
+                try (BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                     while (stdInput.readLine() != null) {}
-                    while (stdError.readLine() != null) {}
+                }
+                // Capture stderr for error logging
+                StringBuilder errOutput = new StringBuilder();
+                try (BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = stdError.readLine()) != null) { errOutput.append(line).append("\n"); }
                 }
 
-                process.onExit().thenAccept((v) -> onComplete.run()).join();
+                int exitCode = process.waitFor();
+                if (exitCode != 0 || !to.exists() || to.length() == 0) {
+                    Bukkit.getLogger().severe("FFmpeg conversion failed: " + errOutput.toString().trim());
+                }
 
-            //TODO Debugging purposes, change back to IOException later
+                onComplete.run();
+
             } catch (Exception e) {
                 e.printStackTrace();
             }

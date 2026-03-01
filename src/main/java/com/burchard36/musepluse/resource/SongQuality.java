@@ -17,24 +17,18 @@ public enum SongQuality {
     HIGH,
     ULTRA;
 
+    /**
+     * Returns libvorbis VBR quality value (-1 to 10).
+     * Scale: 1=~45kbps, 3=~112kbps, 5=~160kbps, 7=~224kbps, 9=~320kbps
+     */
     public static int getQualityNumber(final SongQuality quality) {
         switch (quality) {
-            case HORRIBLE -> {
-                return 8;
-            }
-            case LOW -> {
-                return 16;
-            }
-            case MEDIUM -> {
-                return 32;
-            }
-            case HIGH -> {
-                return 48;
-            }
-            case ULTRA -> {
-                return 64;
-            }
+            case HORRIBLE -> { return 1; }
+            case LOW      -> { return 2; }
+            case MEDIUM   -> { return 4; }
+            case HIGH     -> { return 6; }
+            case ULTRA    -> { return 8; }
         }
-        return 0;
+        return 4;
     }
 }
