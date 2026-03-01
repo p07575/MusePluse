@@ -28,11 +28,16 @@ public abstract class SoundsJsonWriter extends McMetaWriter {
 
         final JsonObject soundsJsonData = new JsonObject();
         songConfig.getSongDataList().forEach((song) -> {
-            final JsonObject soundsArray = new JsonObject();
-            final JsonArray arrayOfSongs = new JsonArray();
-            arrayOfSongs.add("music/" + song.getLocalKey());
-            soundsArray.add("sounds", arrayOfSongs);
-            soundsJsonData.add(song.getLocalKey(), soundsArray);
+            final JsonObject soundEvent = new JsonObject();
+            soundEvent.addProperty("category", "music");
+            final JsonArray soundsArray = new JsonArray();
+            // Use object format so we can set stream:true (required for long audio files)
+            final JsonObject soundEntry = new JsonObject();
+            soundEntry.addProperty("name", "music/" + song.getLocalKey());
+            soundEntry.addProperty("stream", true);
+            soundsArray.add(soundEntry);
+            soundEvent.add("sounds", soundsArray);
+            soundsJsonData.add(song.getLocalKey(), soundEvent);
         });
 
         try (final FileWriter writer = new FileWriter(this.getSoundsJsonFile())) {

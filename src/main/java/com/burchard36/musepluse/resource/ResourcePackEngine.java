@@ -203,8 +203,10 @@ public class ResourcePackEngine extends OGGFileWriter {
     public final File resourcePackFileFromDisk() {
         File[] resourcePackDirectoryFiles = this.getResourcePackDirectory().listFiles();
         if (resourcePackDirectoryFiles == null) return null;
-        if (resourcePackDirectoryFiles.length <= 0) return null;
-        return resourcePackDirectoryFiles[0];
+        for (File file : resourcePackDirectoryFiles) {
+            if (file.isFile() && file.getName().endsWith(".zip")) return file;
+        }
+        return null;
     }
 
     /**
